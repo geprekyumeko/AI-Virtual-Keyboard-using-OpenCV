@@ -2,6 +2,7 @@ import cv2
 from cvzone.HandTrackingModule import HandDetector
 import time
 from pynput.keyboard import Controller, Key
+import numpy as np 
 
 # Inisialisasi Kamera
 cap = cv2.VideoCapture(0)
@@ -23,14 +24,14 @@ keys = [["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "BACKSPACE"],
         [" "]]
 finalText = ""
 
-# Class untuk merepresentasikan setiap tombol
+# Class Button tidak diubah
 class Button():
     def __init__(self, pos, text, size=[85, 85]):
         self.pos = pos
         self.size = size
         self.text = text
 
-# Logika pembuatan layout tombol
+# Logika pembuatan layout tombol tidak diubah
 buttonList = []
 x_start, y_start, gap = 50, 50, 15
 y_pos = y_start
@@ -48,21 +49,33 @@ for row in keys:
         x_pos += size[0] + gap
     y_pos += 85 + gap
 
-# --- DIUBAH: Fungsi gambar disesuaikan agar teks pas di tombol ---
+
+# Fungsi gambar semua tombol dengan efek transparan
 def drawAll(img, buttonList):
+    # Buat sebuah lapisan overlay kosong untuk menggambar tombol transparan
+    overlay = img.copy()
+    
     for button in buttonList:
         x, y = button.pos
         w, h = button.size
-        cv2.rectangle(img, button.pos, (x + w, y + h), (255, 0, 255), cv2.FILLED)
-        
+        # Gambar kotak solid pada lapisan overlay
+        cv2.rectangle(overlay, button.pos, (x + w, y + h), (255, 0, 255), cv2.FILLED)
+    
+    # Blend lapisan overlay dengan gambar asli untuk menciptakan efek transparan
+    alpha = 0.2 # Tingkat transparansi (0.0 = full transparan, 1.0 = solid)
+    img = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
+
+    # Gambar teks di atas gambar yang sudah di-blend agar teks tetap solid
+    for button in buttonList:
+        x, y = button.pos
+        w, h = button.size
         text = button.text
         font = cv2.FONT_HERSHEY_PLAIN
         font_scale = 4
         font_thickness = 4
         
-        # Penyesuaian ukuran font khusus untuk teks panjang
         if text == "BACKSPACE":
-            font_scale = 2 # Ukuran lebih kecil
+            font_scale = 2
             font_thickness = 2
         elif text == "ENTER":
             font_scale = 3
@@ -75,9 +88,10 @@ def drawAll(img, buttonList):
         text_y = y + (h + text_size[1]) // 2
         
         cv2.putText(img, text, (text_x, text_y), font, font_scale, (255, 255, 255), font_thickness)
+        
     return img
 
-# ===== LOOP UTAMA PROGRAM =====
+# ===== Loop Utama Program =====
 while True:
     success, img = cap.read()
     img = cv2.flip(img, 1)
@@ -93,15 +107,17 @@ while True:
                 w, h = button.size
 
                 if x < lmList[8][0] < x + w and y < lmList[8][1] < y + h:
-                    cv2.rectangle(img, (x-5, y-5), (x + w + 5, y + h + 5), (175, 0, 175), cv2.FILLED)
+                    # Logika highlight tombol yang disentuh
+                    # Gambar ulang tombol yang disentuh dengan warna solid (tidak transparan)
+                    cv2.rectangle(img, button.pos, (x + w, y + h), (255, 0, 255), cv2.FILLED)
                     
-                    # --- DIUBAH: Logika gambar teks saat hover juga disesuaikan ---
+                    # Tulis ulang teks di atasnya agar terlihat
                     text = button.text
                     font = cv2.FONT_HERSHEY_PLAIN
                     font_scale = 4
                     font_thickness = 4
                     if text == "BACKSPACE":
-                        font_scale = 2 # Ukuran lebih kecil
+                        font_scale = 2
                         font_thickness = 2
                     elif text == "ENTER":
                         font_scale = 3
@@ -118,8 +134,8 @@ while True:
                     current_time = time.time()
                     if length < 40 and (current_time - last_click_time) > CLICK_DELAY:
                         last_click_time = current_time
-
-                        # Logika klik disesuaikan dengan teks tombol baru
+                        
+                        # Logika klik tidak ada yang diubah
                         if button.text == "BACKSPACE":
                             keyboard.press(Key.backspace)
                             finalText = finalText[:-1]
@@ -133,6 +149,7 @@ while True:
                             keyboard.press(button.text)
                             finalText += button.text
 
+                        # Efek klik (hijau) tetap solid
                         cv2.rectangle(img, button.pos, (x + w, y + h), (0, 255, 0), cv2.FILLED)
                         cv2.putText(img, text, (text_x, text_y), font, font_scale, (255, 255, 255), font_thickness)
 
