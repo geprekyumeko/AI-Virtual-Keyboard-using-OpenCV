@@ -14,7 +14,7 @@ cap.set(4, 720)
 detector = HandDetector(detectionCon=0.8, maxHands=1)
 keyboard = Controller()
 
-#Variabel State untuk Tombol Modifier
+# Variabel State untuk Tombol Modifier
 is_caps_on = False
 is_shift_on = False
 
@@ -57,7 +57,7 @@ class Button():
 def create_button_layout(keys_layout):
     buttonList = []
     # Posisi awal dan ukuran dasar
-    x_start, y_start = 10, 50
+    x_start, y_start = 44, 100
     key_w, key_h = 65, 65
     gap = 10
 
@@ -124,7 +124,7 @@ def drawAll(img, buttonList):
         # Beri warna berbeda jika Caps/Shift aktif
         if (button.text == "Caps" and is_caps_on) or \
            (button.text == "Shift" and is_shift_on):
-            bg_color = (180, 0, 180) # Warna ungu lebih gelap/terang saat aktif
+            bg_color = (255, 0, 0) # Warna ungu lebih gelap/terang saat aktif
             
         cv2.rectangle(overlay, button.pos, (x + w, y + h), bg_color, cv2.FILLED)
 
@@ -134,33 +134,46 @@ def drawAll(img, buttonList):
     for button in buttonList:
         x, y = button.pos
         w, h = button.size
-        text = button.display_text
         
-        # Atur ukuran font secara dinamis agar pas
-        font_face = cv2.FONT_HERSHEY_PLAIN
-        font_scale = 1
-        font_thickness = 1
-        text_size = cv2.getTextSize(text, font_face, font_scale, font_thickness)[0]
+        # LOGIKA FONT BARU
+        font_face = cv2.FONT_HERSHEY_PLAIN # Font yang lebih tebal dan modern
+        font_thickness = 2 # KETEBALAN FONT SAMA UNTUK SEMUA
         
-        # Coba perbesar font selama masih muat di dalam tombol
-        max_scale = 5
-        for scale in range(2, max_scale + 1):
-            new_text_size = cv2.getTextSize(text, font_face, scale, font_thickness+1)[0]
-            if new_text_size[0] < w - 20 and new_text_size[1] < h - 20:
-                font_scale = scale
-                font_thickness += 1
-            else:
-                break
-        
-        if len(text) > 3: # Perkecil font untuk teks panjang seperti Backspace
-            font_scale = max(1, font_scale - 1)
+        # Fungsi untuk mencari ukuran (scale) terbaik
+        def get_optimal_font_scale(text, width, height):
+            for scale in range(60, 10, -5): # Coba dari besar ke kecil
+                scale /= 10.0 # scale jadi 6.0, 5.5, 5.0, ...
+                textSize = cv2.getTextSize(text, font_face, scale, font_thickness)[0]
+                if textSize[0] < width - 40 and textSize[1] < height - 40:
+                    return scale
+            return 1.0 # Default jika terlalu kecil
+
+        # Jika tombol punya karakter Shift (misal: "1", "2", ";")
+        if button.text in shift_map:
+            main_char = button.text
+            shift_char = shift_map[button.text]
             
-        text_size = cv2.getTextSize(text, font_face, font_scale, font_thickness)[0]
-        text_x = x + (w - text_size[0]) // 2
-        text_y = y + (h + text_size[1]) // 2
-        
-        cv2.putText(img, text, (text_x, text_y), font_face, font_scale, (255, 255, 255), font_thickness)
-        
+            # Gambar karakter utama
+            font_scale = get_optimal_font_scale(main_char, w, h)
+            textSize = cv2.getTextSize(main_char, font_face, font_scale, font_thickness)[0]
+            text_x = x + (w - textSize[0]) // 2
+            text_y = y + (h + textSize[1]) // 2
+            cv2.putText(img, main_char, (text_x, text_y + 10), font_face, font_scale, (255, 255, 255), font_thickness)
+
+            # Gambar karakter shift (lebih kecil, di pojok kanan atas)
+            shift_font_scale = font_scale * 0.8
+            shift_textSize = cv2.getTextSize(shift_char, font_face, shift_font_scale, font_thickness)[0]
+            cv2.putText(img, shift_char, (x + w - shift_textSize[0] - 5, y + shift_textSize[1] + 10), font_face, shift_font_scale, (200, 200, 200), font_thickness)
+
+            # Untuk tombol lainnya (huruf, Backspace, Enter, dll)
+        else:
+            text = button.text.upper() if len(button.text) > 1 else button.text
+            font_scale = get_optimal_font_scale(text, w, h)
+            textSize = cv2.getTextSize(text, font_face, font_scale, font_thickness)[0]
+            text_x = x + (w - textSize[0]) // 2
+            text_y = y + (h + textSize[1]) // 2
+            cv2.putText(img, text, (text_x, text_y), font_face, font_scale, (255, 255, 255), font_thickness)
+            
     return img
 
 # ===== Loop Utama Program =====
@@ -187,8 +200,37 @@ while True:
                 if x < lmList[8][0] < x + w and y < lmList[8][1] < y + h:
                     # Highlight tombol yang di-hover
                     cv2.rectangle(img, button.pos, (x + w, y + h), (175, 0, 175), cv2.FILLED)
-                    # Tulis ulang teks
-                    # (Untuk simplicitas, kita bisa skip redraw teks saat hover karena sudah ada di drawAll)
+                    # Gambar Ulang Teks Saat Hover
+                    # Logika ini disalin dari drawAll agar teks muncul di atas highlight
+                    font_face = cv2.FONT_HERSHEY_PLAIN
+                    font_thickness = 2
+                    def get_optimal_font_scale(text, width, height):
+                        for scale in range(60, 10, -5):
+                            scale /= 10.0
+                            textSize = cv2.getTextSize(text, font_face, scale, font_thickness)[0]
+                            if textSize[0] < width - 40 and textSize[1] < height - 40:
+                                return scale
+                        return 1.0
+
+                    if button.text in shift_map:
+                        main_char = button.text
+                        shift_char = shift_map[button.text]
+                        font_scale = get_optimal_font_scale(main_char, w, h)
+                        textSize = cv2.getTextSize(main_char, font_face, font_scale, font_thickness)[0]
+                        text_x = x + (w - textSize[0]) // 2
+                        text_y = y + (h + textSize[1]) // 2
+                        cv2.putText(img, main_char, (text_x, text_y + 10), font_face, font_scale, (255, 255, 255), font_thickness)
+                        shift_font_scale = font_scale * 0.8
+                        shift_textSize = cv2.getTextSize(shift_char, font_face, shift_font_scale, font_thickness)[0]
+                        cv2.putText(img, shift_char, (x + w - shift_textSize[0] - 5, y + shift_textSize[1] + 10), font_face, shift_font_scale, (200, 200, 200), font_thickness)
+                    else:
+                        text = button.text.upper() if len(button.text) > 1 else button.text
+                        font_scale = get_optimal_font_scale(text, w, h)
+                        textSize = cv2.getTextSize(text, font_face, font_scale, font_thickness)[0]
+                        text_x = x + (w - textSize[0]) // 2
+                        text_y = y + (h + textSize[1]) // 2
+                        cv2.putText(img, text, (text_x, text_y), font_face, font_scale, (255, 255, 255), font_thickness)
+                    #
 
                     # Deteksi klik (jari telunjuk dan tengah bertemu)
                     length, info, img = detector.findDistance(lmList[8][1:], lmList[12][1:], img)
@@ -196,14 +238,34 @@ while True:
                     
                     if length < 40 and (current_time - last_click_time) > CLICK_DELAY:
                         last_click_time = current_time
-                        
                         key_to_press = button.text
                         
                         # Efek visual saat klik
                         cv2.rectangle(img, button.pos, (x + w, y + h), (0, 255, 0), cv2.FILLED)
+
+                        # Gambar Ulang Teks Saat Klik
+                        # Logika yang sama ditambahkan di sini agar teks juga terlihat saat tombol diklik
+                        if button.text in shift_map:
+                            main_char = button.text
+                            shift_char = shift_map[button.text]
+                            font_scale = get_optimal_font_scale(main_char, w, h)
+                            textSize = cv2.getTextSize(main_char, font_face, font_scale, font_thickness)[0]
+                            text_x = x + (w - textSize[0]) // 2
+                            text_y = y + (h + textSize[1]) // 2
+                            cv2.putText(img, main_char, (text_x, text_y + 10), font_face, font_scale, (255, 255, 255), font_thickness)
+                            shift_font_scale = font_scale * 0.8
+                            shift_textSize = cv2.getTextSize(shift_char, font_face, shift_font_scale, font_thickness)[0]
+                            cv2.putText(img, shift_char, (x + w - shift_textSize[0] - 5, y + shift_textSize[1] + 10), font_face, shift_font_scale, (200, 200, 200), font_thickness)
+                        else:
+                            text = button.text.upper() if len(button.text) > 1 else button.text
+                            font_scale = get_optimal_font_scale(text, w, h)
+                            textSize = cv2.getTextSize(text, font_face, font_scale, font_thickness)[0]
+                            text_x = x + (w - textSize[0]) // 2
+                            text_y = y + (h + textSize[1]) // 2
+                            cv2.putText(img, text, (text_x, text_y), font_face, font_scale, (255, 255, 255), font_thickness)
+                        #
                         
                         # Logika Klik yang Ditingkatkan
-                        
                         # 1. Handle tombol toggle (Caps & Shift)
                         if key_to_press == "Caps":
                             is_caps_on = not is_caps_on
