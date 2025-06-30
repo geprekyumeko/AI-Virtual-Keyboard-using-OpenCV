@@ -1,3 +1,4 @@
+# Import library yang dibutuhkan
 import cv2
 from cvzone.HandTrackingModule import HandDetector
 import time
@@ -6,7 +7,6 @@ import numpy as np
 
 # Inisialisasi Kamera
 cap = cv2.VideoCapture(0)
-# Usahakan menggunakan resolusi yang lebih umum seperti 1280x720
 cap.set(3, 1280)
 cap.set(4, 720)
 
@@ -34,8 +34,7 @@ shift_map = {
     "-": "_", "=": "+", "[": "{", "]": "}", "\\": "|", ";": ":", "'": "\"", ",": "<", ".": ">", "/": "?"
 }
 
-# Layout Keyboard Baru Sesuai Desain
-# Layout ini merepresentasikan karakter utama yang akan diketik
+# Mapping Layout karakter utama
 keys = [
     ["ESC", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace", "Home"],
     ["Tab", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\", "Del"],
